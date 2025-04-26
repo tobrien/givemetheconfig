@@ -10,12 +10,6 @@ jest.unstable_mockModule('../src/util/storage', () => ({
     create: jest.fn(),
 }));
 
-// Add mock for dates module
-jest.unstable_mockModule('../src/util/dates', () => ({
-    create: jest.fn(), // Mock the factory function
-    validTimezones: jest.fn(),
-}));
-
 jest.unstable_mockModule('../src/options', () => ({
     create: jest.fn(),
     DEFAULT_OPTIONS: {
@@ -41,7 +35,6 @@ describe('arguments', () => {
 
     // Initialize modules once before all tests
     beforeAll(async () => {
-        DatesModule = await import('../src/util/dates');
         StorageModule = await import('../src/util/storage');
         OptionsModule = await import('../src/options');
         ArgumentsModule = await import('../src/arguments');
@@ -86,9 +79,6 @@ describe('arguments', () => {
             now: jest.fn(() => new Date('2024-01-15T12:00:00Z')),
             // validTimezones is now mocked on the module itself
         };
-        // Configure the mocks defined via jest.unstable_mockModule
-        (DatesModule.create as jest.Mock).mockReturnValue(mockDatesUtil);
-        (DatesModule.validTimezones as jest.Mock).mockReturnValue(['Etc/UTC', 'America/New_York', 'Europe/London']);
 
         // Setup storage mock
         mockStorageInstance = {
