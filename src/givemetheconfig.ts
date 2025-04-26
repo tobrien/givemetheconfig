@@ -4,8 +4,8 @@ import { Logger } from "winston";
 // import * as yaml from 'js-yaml'; // No longer needed here
 import { DEFAULT_ENCODING } from './constants';
 import * as yaml from 'js-yaml';
+import { z, ZodObject } from 'zod';
 import path from 'path';
-import { z, ZodObject, ZodTypeAny } from 'zod';
 import * as Arguments from './arguments';
 import { loadAndMergeConfig } from './config'; // Import the new function
 import { DEFAULT_CONFIG_DIRECTORY, Options as GivemetheconfigOptions } from "./options";
@@ -14,7 +14,7 @@ import * as Storage from './util/storage';
 export * from './options';
 
 // Make interface generic
-export interface Givemetheconfig<T extends ZodTypeAny> {
+export interface Givemetheconfig {
     configure: (command: Command) => Promise<Command>;
     setLogger: (logger: Logger) => void;
     // Validate return type uses the combined schema type
@@ -34,7 +34,7 @@ export const ConfigSchema = z.object({
 export type Config = z.infer<typeof ConfigSchema>;
 
 // Make create function generic
-export const create = <T extends z.ZodRawShape>(options: GivemetheconfigOptions<T>): Givemetheconfig<z.ZodObject<T & typeof ConfigSchema.shape>> => {
+export const create = <T extends z.ZodRawShape>(options: GivemetheconfigOptions<T>): Givemetheconfig => {
 
     let logger: Logger | typeof console = console;
 
@@ -72,7 +72,7 @@ export const create = <T extends z.ZodRawShape>(options: GivemetheconfigOptions<
         logger.debug(`Resolved config directory: ${resolvedConfigDir}`);
 
         // Delegate loading, merging, and validation to the new function
-        const finalConfig = await loadAndMergeConfig<T, typeof fullSchema>({
+        const finalConfig = await loadAndMergeConfig<typeof fullSchema>({
             logger,
             cliProvidedArgs,
             resolvedConfigDir,
@@ -82,7 +82,7 @@ export const create = <T extends z.ZodRawShape>(options: GivemetheconfigOptions<
         // The finalConfig is already validated and has configDirectory correctly set
         logger.debug('Final Config returned to caller: \n\n%s\n\n', JSON.stringify(finalConfig, null, 2));
 
-        return finalConfig;
+        return finalConfig as FinalConfigType;
     }
 
     const getValuesFromFile = async (args: Args): Promise<z.infer<ZodObject<z.ZodRawShape & typeof ConfigSchema.shape>>> => {

@@ -23,7 +23,7 @@ function listZodKeys(schema: z.ZodTypeAny, prefix = ''): string[] {
     return [];
 }
 
-export interface LoadAndMergeConfigArgs<T extends z.ZodRawShape, U extends ZodObject<any>> {
+export interface LoadAndMergeConfigArgs<U extends ZodObject<any>> {
     logger: Logger | typeof console;
     cliProvidedArgs: Config;
     resolvedConfigDir: string;
@@ -44,8 +44,8 @@ function checkForExtraKeys(mergedSources: object, fullSchema: ZodObject<any>, lo
     }
 }
 
-export const loadAndMergeConfig = async <T extends z.ZodRawShape, U extends ZodObject<any>>(
-    args: LoadAndMergeConfigArgs<T, U>
+export const loadAndMergeConfig = async <U extends ZodObject<any>>(
+    args: LoadAndMergeConfigArgs<U>
 ): Promise<z.infer<U>> => {
     const { logger, cliProvidedArgs, resolvedConfigDir, fullSchema } = args;
 

@@ -3,7 +3,6 @@ import { VitePluginNode } from 'vite-plugin-node';
 import replace from '@rollup/plugin-replace';
 // import { visualizer } from 'rollup-plugin-visualizer';
 import { execSync } from 'child_process';
-import shebang from 'rollup-plugin-preserve-shebang';
 import dts from 'vite-plugin-dts';
 
 let gitInfo = {
@@ -42,6 +41,9 @@ export default defineConfig({
             appPath: './src/givemetheconfig.ts',
             exportName: 'viteNodeApp',
             tsCompiler: 'swc',
+            swcOptions: {
+                sourceMaps: true,
+            },
         }),
         // visualizer({
         //     template: 'network',
@@ -80,11 +82,6 @@ export default defineConfig({
                 preserveModules: true,
                 exports: 'named',
             },
-            plugins: [
-                shebang({
-                    shebang: '#!/usr/bin/env node',
-                }),
-            ],
         },
         // Make sure Vite generates ESM-compatible code
         modulePreload: false,
