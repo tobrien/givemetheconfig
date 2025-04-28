@@ -1,8 +1,7 @@
-import { Logger } from "winston";
 import * as path from 'path';
 import * as yaml from 'js-yaml';
 import { z, ZodObject } from 'zod';
-import { Config } from "givemetheconfig";
+import { Config, ConfigSchema, Logger } from "./givemetheconfig";
 import * as Storage from "./util/storage";
 import { DEFAULT_ENCODING } from "./constants";
 
@@ -23,11 +22,11 @@ function listZodKeys(schema: z.ZodTypeAny, prefix = ''): string[] {
     return [];
 }
 
-export interface LoadAndMergeConfigArgs<U extends ZodObject<any>> {
-    logger: Logger | typeof console;
+export interface LoadAndMergeConfigArgs<T extends z.ZodRawShape> {
+    logger: Logger;
     cliProvidedArgs: Config;
     resolvedConfigDir: string;
-    fullSchema: U;
+    configShape: T;
 }
 
 function checkForExtraKeys(mergedSources: object, fullSchema: ZodObject<any>, logger: Logger | typeof console): void {
@@ -44,14 +43,20 @@ function checkForExtraKeys(mergedSources: object, fullSchema: ZodObject<any>, lo
     }
 }
 
-export const loadAndMergeConfig = async <U extends ZodObject<any>>(
-    args: LoadAndMergeConfigArgs<U>
-): Promise<z.infer<U>> => {
-    const { logger, cliProvidedArgs, resolvedConfigDir, fullSchema } = args;
+export const loadAndMergeConfig = async <T extends z.ZodRawShape>(
+    args: LoadAndMergeConfigArgs<T>
+): Promise<z.infer<ZodObject<T & typeof ConfigSchema.shape>>> => {
+    const { logger, cliProvidedArgs, resolvedConfigDir, configShape } = args;
 
     const storage = Storage.create({ log: logger.debug });
     const configFile = path.join(resolvedConfigDir, 'config.yaml');
     logger.debug(`Attempting to load config file: ${configFile}`);
+
+    // Combine the base schema with the user-provided shape
+    const fullSchema = z.object({
+        ...ConfigSchema.shape,
+        ...configShape,
+    });
 
     let rawFileConfig: object = {};
 
@@ -92,7 +97,7 @@ export const loadAndMergeConfig = async <U extends ZodObject<any>>(
         throw new Error(`Configuration validation failed. Check logs for details.`);
     }
 
-    let validatedData = validationResult.data;
+    let validatedData: z.infer<ZodObject<T & typeof ConfigSchema.shape>> = validationResult.data;
     logger.debug('Validated Data: \n\n%s\n\n', JSON.stringify(validatedData, null, 2));
 
     // Ensure the final config directory is correctly set, overriding schema defaults if necessary
@@ -102,5 +107,5 @@ export const loadAndMergeConfig = async <U extends ZodObject<any>>(
 
     logger.debug('Final Validated Config (from config.ts): \n\n%s\n\n', JSON.stringify(validatedData, null, 2));
 
-    return validatedData as z.infer<U>;
+    return validatedData;
 }; 
