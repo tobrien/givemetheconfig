@@ -4,7 +4,7 @@ import {
     DEFAULT_CONFIG_DIRECTORY,
 } from "./constants";
 import { ArgumentError } from "./error/ArgumentError";
-import { Options } from "./givemetheconfig";
+import { Options } from "./types";
 export { ArgumentError };
 
 export const configure = async <T extends z.ZodRawShape>(command: Command, options: Options<T>): Promise<Command> => {
