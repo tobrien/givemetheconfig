@@ -85,21 +85,29 @@ export const checkForExtraKeys = (mergedSources: object, fullSchema: ZodObject<a
     }
 }
 
+const validateConfigDirectory = async (configDirectory: string, isRequired: boolean): Promise<void> => {
+    // eslint-disable-next-line no-console
+    const storage = Storage.create({ log: console.log });
+    const exists = await storage.exists(configDirectory);
+    if (!exists) {
+        if (isRequired) {
+            throw new Error(`Config directory does not exist and is required: ${configDirectory}`);
+        }
+    } else if (exists) {
+        const isReadable = await storage.isDirectoryReadable(configDirectory);
+        if (!isReadable) {
+            throw new Error(`Config directory exists but is not readable: ${configDirectory}`);
+        }
+    }
+}
+
 export const validate = async <T extends z.ZodRawShape>(config: z.infer<ZodObject<T & typeof ConfigSchema.shape>>, options: Options<T>): Promise<void> => {
 
     const logger = options.logger;
 
-    const validateConfigDirectory = async (configDirectory: string) => {
-        // eslint-disable-next-line no-console
-        const storage = Storage.create({ log: console.log });
-        const isReadable = await storage.isDirectoryReadable(configDirectory);
-        if (!isReadable) {
-            throw new Error(`Config directory does not exist or is not readable: ${configDirectory}`);
-        }
-    }
 
     if (options.features.includes('config') && config.configDirectory) {
-        await validateConfigDirectory(config.configDirectory);
+        await validateConfigDirectory(config.configDirectory, options.defaults.isRequired);
     }
 
     // Combine the base schema with the user-provided shape

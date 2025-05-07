@@ -2,7 +2,6 @@ import { jest } from '@jest/globals';
 import type * as yaml from 'js-yaml';
 import type * as path from 'path';
 import type * as StorageUtil from '../src/util/storage';
-import { DEFAULT_CONFIG_DIRECTORY, DEFAULT_CONFIG_FILE } from '../src/constants';
 import { z } from 'zod';
 import { Options } from '../src/types';
 
@@ -85,7 +84,12 @@ describe('read', () => {
         baseArgs = {};
         baseOptions = {
             logger: mockLogger,
-            defaults: undefined, // Explicitly set defaults if testing them
+            defaults: {
+                configDirectory: '.',
+                configFile: 'config.yaml',
+                isRequired: false,
+                encoding: 'utf8',
+            }, // Explicitly set defaults if testing them
             features: [], // Add required features array (can be empty)
             configShape: z.object({}), // Add required empty Zod object shape
         };
@@ -97,47 +101,47 @@ describe('read', () => {
     });
 
     test('should use default config directory if none provided', async () => {
-        const expectedConfigPath = `${DEFAULT_CONFIG_DIRECTORY}/${DEFAULT_CONFIG_FILE}`;
+        const expectedConfigPath = `${baseOptions.defaults.configDirectory}/${baseOptions.defaults.configFile}`;
         mockPathJoin.mockReturnValue(expectedConfigPath);
 
         await read(baseArgs, baseOptions);
 
-        expect(mockPathJoin).toHaveBeenCalledWith(DEFAULT_CONFIG_DIRECTORY, DEFAULT_CONFIG_FILE);
-        expect(mockReadFile).toHaveBeenCalledWith(expectedConfigPath, 'utf8');
+        expect(mockPathJoin).toHaveBeenCalledWith(baseOptions.defaults.configDirectory, baseOptions.defaults.configFile);
+        expect(mockReadFile).toHaveBeenCalledWith(expectedConfigPath, baseOptions.defaults.encoding);
     });
 
     test('should use configDirectory from args if provided', async () => {
         const argsDir = '/args/config/dir';
-        const expectedConfigPath = `${argsDir}/${DEFAULT_CONFIG_FILE}`;
+        const expectedConfigPath = `${argsDir}/${baseOptions.defaults.configFile}`;
         mockPathJoin.mockReturnValue(expectedConfigPath);
 
         await read({ ...baseArgs, configDirectory: argsDir }, baseOptions);
 
-        expect(mockPathJoin).toHaveBeenCalledWith(argsDir, DEFAULT_CONFIG_FILE);
-        expect(mockReadFile).toHaveBeenCalledWith(expectedConfigPath, 'utf8');
+        expect(mockPathJoin).toHaveBeenCalledWith(argsDir, baseOptions.defaults.configFile);
+        expect(mockReadFile).toHaveBeenCalledWith(expectedConfigPath, baseOptions.defaults.encoding);
     });
 
     test('should use configDirectory from options.defaults if provided and args not', async () => {
         const defaultsDir = '/defaults/config/dir';
-        const expectedConfigPath = `${defaultsDir}/${DEFAULT_CONFIG_FILE}`;
+        const expectedConfigPath = `${defaultsDir}/${baseOptions.defaults.configFile}`;
         mockPathJoin.mockReturnValue(expectedConfigPath);
 
-        await read(baseArgs, { ...baseOptions, defaults: { configDirectory: defaultsDir } });
+        await read(baseArgs, { ...baseOptions, defaults: { configDirectory: defaultsDir, configFile: baseOptions.defaults.configFile, isRequired: baseOptions.defaults.isRequired, encoding: baseOptions.defaults.encoding } });
 
-        expect(mockPathJoin).toHaveBeenCalledWith(defaultsDir, DEFAULT_CONFIG_FILE);
-        expect(mockReadFile).toHaveBeenCalledWith(expectedConfigPath, 'utf8');
+        expect(mockPathJoin).toHaveBeenCalledWith(defaultsDir, baseOptions.defaults.configFile);
+        expect(mockReadFile).toHaveBeenCalledWith(expectedConfigPath, baseOptions.defaults.encoding);
     });
 
     test('should prioritize args.configDirectory over options.defaults.configDirectory', async () => {
         const argsDir = '/args/config/dir';
         const defaultsDir = '/defaults/config/dir';
-        const expectedConfigPath = `${argsDir}/${DEFAULT_CONFIG_FILE}`; // Args should win
+        const expectedConfigPath = `${argsDir}/${baseOptions.defaults.configFile}`; // Args should win
         mockPathJoin.mockReturnValue(expectedConfigPath);
 
-        await read({ ...baseArgs, configDirectory: argsDir }, { ...baseOptions, defaults: { configDirectory: defaultsDir } });
+        await read({ ...baseArgs, configDirectory: argsDir }, { ...baseOptions, defaults: { configDirectory: defaultsDir, configFile: baseOptions.defaults.configFile, isRequired: baseOptions.defaults.isRequired, encoding: baseOptions.defaults.encoding } });
 
-        expect(mockPathJoin).toHaveBeenCalledWith(argsDir, DEFAULT_CONFIG_FILE);
-        expect(mockReadFile).toHaveBeenCalledWith(expectedConfigPath, 'utf8');
+        expect(mockPathJoin).toHaveBeenCalledWith(argsDir, baseOptions.defaults.configFile);
+        expect(mockReadFile).toHaveBeenCalledWith(expectedConfigPath, baseOptions.defaults.encoding);
     });
 
     test('should load and parse valid YAML config file', async () => {
@@ -152,7 +156,7 @@ key2: 123`;
         expect(mockYamlLoad).toHaveBeenCalledWith(yamlContent);
         expect(config).toEqual({
             ...parsedYaml,
-            configDirectory: DEFAULT_CONFIG_DIRECTORY // Should be added
+            configDirectory: baseOptions.defaults.configDirectory // Should be added
         });
     });
 
@@ -165,7 +169,7 @@ key2: 123`;
 
         expect(mockLogger.warn).toHaveBeenCalledWith(expect.stringContaining('Ignoring invalid configuration format'));
         expect(config).toEqual({
-            configDirectory: DEFAULT_CONFIG_DIRECTORY // Only default values applied
+            configDirectory: baseOptions.defaults.configDirectory // Only default values applied
         });
     });
 
@@ -179,7 +183,7 @@ key2: 123`;
         // No warning needed for null, it's handled gracefully
         expect(mockLogger.warn).not.toHaveBeenCalled();
         expect(config).toEqual({
-            configDirectory: DEFAULT_CONFIG_DIRECTORY // Only default values applied
+            configDirectory: baseOptions.defaults.configDirectory // Only default values applied
         });
     });
 
@@ -194,7 +198,7 @@ key2: 123`;
         expect(mockLogger.debug).toHaveBeenCalledWith(expect.stringContaining('Configuration file not found'));
         expect(mockLogger.error).not.toHaveBeenCalled();
         expect(config).toEqual({
-            configDirectory: DEFAULT_CONFIG_DIRECTORY // Only default values applied
+            configDirectory: baseOptions.defaults.configDirectory // Only default values applied
         });
     });
 
@@ -207,7 +211,7 @@ key2: 123`;
         expect(mockLogger.debug).toHaveBeenCalledWith(expect.stringContaining('Configuration file not found'));
         expect(mockLogger.error).not.toHaveBeenCalled();
         expect(config).toEqual({
-            configDirectory: DEFAULT_CONFIG_DIRECTORY // Only default values applied
+            configDirectory: baseOptions.defaults.configDirectory // Only default values applied
         });
     });
 
@@ -221,7 +225,7 @@ key2: 123`;
         expect(mockLogger.error).toHaveBeenCalledWith(expect.stringContaining(error.message));
         expect(mockLogger.debug).not.toHaveBeenCalledWith(expect.stringContaining('Configuration file not found'));
         expect(config).toEqual({
-            configDirectory: DEFAULT_CONFIG_DIRECTORY // Only default values applied even on error
+            configDirectory: baseOptions.defaults.configDirectory // Only default values applied even on error
         });
     });
 
@@ -237,7 +241,7 @@ key2: 123`;
         expect(mockLogger.error).toHaveBeenCalledWith(expect.stringContaining(`Failed to load or parse configuration`));
         expect(mockLogger.error).toHaveBeenCalledWith(expect.stringContaining(error.message));
         expect(config).toEqual({
-            configDirectory: DEFAULT_CONFIG_DIRECTORY // Only default values applied even on error
+            configDirectory: baseOptions.defaults.configDirectory // Only default values applied even on error
         });
     });
 
@@ -255,7 +259,7 @@ key3: undefined`;
         expect(config).toEqual({
             key1: 'value1',
             key2: null, // null is a valid JSON/YAML value, should remain
-            configDirectory: DEFAULT_CONFIG_DIRECTORY
+            configDirectory: baseOptions.defaults.configDirectory
         });
         expect(config).not.toHaveProperty('key3');
         expect(config).not.toHaveProperty('explicitUndefined');

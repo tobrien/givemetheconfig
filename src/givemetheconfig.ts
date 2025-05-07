@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import { Args, DefaultOptions, Feature, Givemetheconfig, Logger, Options } from 'types';
 import { z, ZodObject } from 'zod';
 import { configure } from './configure';
-import { DEFAULT_APP_OPTIONS, DEFAULT_FEATURES, DEFAULT_LOGGER } from './constants';
+import { DEFAULT_FEATURES, DEFAULT_LOGGER, DEFAULT_OPTIONS } from './constants';
 import { read } from './read';
 import { ConfigSchema } from 'types';
 import { validate } from './validate';
@@ -11,14 +11,14 @@ export * from './types';
 
 // Make create function generic
 export const create = <T extends z.ZodRawShape>(pOptions: {
-    defaults?: DefaultOptions,
+    defaults: Pick<DefaultOptions, 'configDirectory'> & Partial<Omit<DefaultOptions, 'configDirectory'>>,
     features?: Feature[],
     configShape: T, // Make configShape mandatory
     logger?: Logger,
 }): Givemetheconfig<T> => {
 
 
-    const defaults = pOptions.defaults || DEFAULT_APP_OPTIONS;
+    const defaults: DefaultOptions = { ...DEFAULT_OPTIONS, ...pOptions.defaults } as DefaultOptions;
     const features = pOptions.features || DEFAULT_FEATURES;
     const configShape = pOptions.configShape;
     let logger = pOptions.logger || DEFAULT_LOGGER;

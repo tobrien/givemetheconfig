@@ -8,6 +8,7 @@ import { ArgumentError } from '../src/error/ArgumentError'; // Import even if ju
 
 // Mock storage
 const mockIsDirectoryReadable = jest.fn<StorageUtil.Utility['isDirectoryReadable']>();
+const mockExists = jest.fn<StorageUtil.Utility['exists']>();
 const mockStorageCreate = jest.fn<typeof StorageUtil.create>().mockReturnValue({
     isDirectoryReadable: mockIsDirectoryReadable,
     // Add other methods if needed, mocked or otherwise
@@ -36,6 +37,8 @@ const mockStorageCreate = jest.fn<typeof StorageUtil.create>().mockReturnValue({
     createReadStream: jest.fn(),
     // @ts-ignore
     createWriteStream: jest.fn(),
+    // @ts-ignore
+    exists: mockExists,
 });
 jest.unstable_mockModule('../src/util/storage', () => ({
     create: mockStorageCreate,
@@ -67,7 +70,12 @@ describe('validate', () => {
             logger: mockLogger,
             configShape: z.object({}), // Default empty shape
             features: ['config'], // Default feature set including 'config'
-            defaults: {}, // Default empty defaults
+            defaults: {
+                configDirectory: '.',
+                configFile: 'config.yaml',
+                isRequired: false,
+                encoding: 'utf8',
+            }, // Default empty defaults
         };
 
         // Default mock implementations
@@ -103,11 +111,40 @@ describe('validate', () => {
         const configDir = '/invalid/config/dir';
         const config = { configDirectory: configDir };
         const options: Options<any> = { ...baseOptions, features: ['config'] };
+        mockExists.mockResolvedValue(true);
         mockIsDirectoryReadable.mockResolvedValue(false);
 
-        await expect(validate(config, options)).rejects.toThrow(`Config directory does not exist or is not readable: ${configDir}`);
+        await expect(validate(config, options)).rejects.toThrow(`Config directory exists but is not readable: ${configDir}`);
         expect(mockStorageCreate).toHaveBeenCalled();
         expect(mockIsDirectoryReadable).toHaveBeenCalledWith(configDir);
+    });
+
+    test('should throw error if configDirectory does not exist and feature "config" is enabled and isRequired is true', async () => {
+        const configDir = '/invalid/config/dir';
+        const config = { configDirectory: configDir };
+        const options: Options<any> = { ...baseOptions, defaults: { ...baseOptions.defaults, isRequired: true }, features: ['config'] };
+        mockExists.mockResolvedValue(false);
+
+        await expect(validate(config, options)).rejects.toThrow(`Config directory does not exist and is required: ${configDir}`);
+        expect(mockStorageCreate).toHaveBeenCalled();
+        expect(mockExists).toHaveBeenCalledWith(configDir);
+    });
+
+    test('should work if configDirectory does not exist, isRequired is false, config is empty, and feature "config" is enabled', async () => {
+        const configDir = '/invalid/config/dir';
+        const shape = z.object({
+            server: z.object({ host: z.string(), port: z.number() }).optional(),
+            logging: z.object({ level: z.string() }).optional()
+        });
+        const config = {
+            configDirectory: configDir,
+        };
+        const options: Options<typeof shape.shape> = { ...baseOptions, defaults: { ...baseOptions.defaults, isRequired: false }, features: ['config'], configShape: shape.shape };
+        mockExists.mockResolvedValue(false);
+        mockIsDirectoryReadable.mockResolvedValue(false);
+
+        await validate(config as any, options);
+        expect(mockExists).toHaveBeenCalledWith(configDir);
     });
 
     // --- Nested Schema Tests ---

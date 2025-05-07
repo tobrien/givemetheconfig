@@ -1,9 +1,8 @@
 import * as yaml from 'js-yaml';
 import path from 'path';
 import { z, ZodObject } from 'zod';
-import { DEFAULT_CONFIG_DIRECTORY, DEFAULT_CONFIG_FILE, DEFAULT_ENCODING } from './constants';
-import * as Storage from './util/storage';
 import { Args, ConfigSchema, Options } from './types';
+import * as Storage from './util/storage';
 
 function clean(obj: any) {
     return Object.fromEntries(
@@ -15,16 +14,16 @@ export const read = async <T extends z.ZodRawShape>(args: Args, options: Options
     const logger = options.logger;
     const storage = Storage.create({ log: logger.debug });
 
-    const resolvedConfigDir = args.configDirectory || options.defaults?.configDirectory || DEFAULT_CONFIG_DIRECTORY;
+    const resolvedConfigDir = args.configDirectory || options.defaults?.configDirectory;
     logger.debug(`Resolved config directory: ${resolvedConfigDir}`);
 
-    const configFile = path.join(resolvedConfigDir, DEFAULT_CONFIG_FILE);
+    const configFile = path.join(resolvedConfigDir, options.defaults.configFile);
     logger.debug(`Attempting to load config file for givemetheconfig: ${configFile}`);
 
     let rawFileConfig: object = {};
 
     try {
-        const yamlContent = await storage.readFile(configFile, DEFAULT_ENCODING);
+        const yamlContent = await storage.readFile(configFile, options.defaults.encoding);
         const parsedYaml = yaml.load(yamlContent);
         if (parsedYaml !== null && typeof parsedYaml === 'object') {
             rawFileConfig = parsedYaml;
