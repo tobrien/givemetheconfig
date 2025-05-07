@@ -1,7 +1,6 @@
 import { jest } from '@jest/globals';
 import type { Command } from 'commander';
 import { z } from 'zod';
-import { DEFAULT_CONFIG_DIRECTORY } from '../src/constants';
 import { Options } from '../src/types';
 
 // --- Mock Dependencies ---
@@ -37,7 +36,12 @@ describe('configure', () => {
                 verbose: jest.fn(),
                 silly: jest.fn(),
             },
-            defaults: undefined, // Explicitly set defaults if testing them
+            defaults: {
+                configDirectory: '.',
+                configFile: 'config.yaml',
+                isRequired: false,
+                encoding: 'utf8',
+            }, // Explicitly set defaults if testing them
             features: [], // Add required features array (can be empty)
             configShape: z.object({}), // Add required empty Zod object shape
         };
@@ -54,7 +58,7 @@ describe('configure', () => {
         expect(mockOption).toHaveBeenCalledWith(
             '-c, --config-directory <configDirectory>',
             'Config Directory',
-            DEFAULT_CONFIG_DIRECTORY
+            baseOptions.defaults.configDirectory
         );
         expect(result).toBe(mockCommand); // Should return the command instance
     });
@@ -63,7 +67,7 @@ describe('configure', () => {
         const customDefaultsDir = '/custom/config/dir';
         const optionsWithDefaults = {
             ...baseOptions,
-            defaults: { configDirectory: customDefaultsDir },
+            defaults: { ...baseOptions.defaults, configDirectory: customDefaultsDir },
         };
 
         const result = await configure(mockCommand, optionsWithDefaults);

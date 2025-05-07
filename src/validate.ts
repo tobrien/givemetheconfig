@@ -5,14 +5,21 @@ import * as Storage from "./util/storage";
 export { ArgumentError };
 
 export const listZodKeys = (schema: z.ZodTypeAny, prefix = ''): string[] => {
-    if (schema instanceof z.ZodOptional || schema instanceof z.ZodNullable) {
-        return listZodKeys(schema.unwrap(), prefix);
+    // Check if schema has unwrap method (which both ZodOptional and ZodNullable have)
+    if (schema._def && (schema._def.typeName === 'ZodOptional' || schema._def.typeName === 'ZodNullable')) {
+        // Use type assertion to handle the unwrap method
+        const unwrappable = schema as z.ZodOptional<any> | z.ZodNullable<any>;
+        return listZodKeys(unwrappable.unwrap(), prefix);
     }
-    if (schema instanceof z.ZodArray) {
-        return listZodKeys(schema.element, prefix);
+    if (schema._def && schema._def.typeName === 'ZodArray') {
+        // Use type assertion to handle the element property
+        const arraySchema = schema as z.ZodArray<any>;
+        return listZodKeys(arraySchema.element, prefix);
     }
-    if (schema instanceof z.ZodObject) {
-        return Object.entries(schema.shape).flatMap(([key, subschema]) => {
+    if (schema._def && schema._def.typeName === 'ZodObject') {
+        // Use type assertion to handle the shape property
+        const objectSchema = schema as z.ZodObject<any>;
+        return Object.entries(objectSchema.shape).flatMap(([key, subschema]) => {
             const fullKey = prefix ? `${prefix}.${key}` : key;
             const nested = listZodKeys(subschema as z.ZodTypeAny, fullKey);
             return nested.length ? nested : fullKey;
@@ -85,21 +92,27 @@ export const checkForExtraKeys = (mergedSources: object, fullSchema: ZodObject<a
     }
 }
 
-export const validate = async <T extends z.ZodRawShape>(config: z.infer<ZodObject<T & typeof ConfigSchema.shape>>, options: Options<T>): Promise<void> => {
-
-    const logger = options.logger;
-
-    const validateConfigDirectory = async (configDirectory: string) => {
-        // eslint-disable-next-line no-console
-        const storage = Storage.create({ log: console.log });
+const validateConfigDirectory = async (configDirectory: string, isRequired: boolean): Promise<void> => {
+    // eslint-disable-next-line no-console
+    const storage = Storage.create({ log: console.log });
+    const exists = await storage.exists(configDirectory);
+    if (!exists) {
+        if (isRequired) {
+            throw new Error(`Config directory does not exist and is required: ${configDirectory}`);
+        }
+    } else if (exists) {
         const isReadable = await storage.isDirectoryReadable(configDirectory);
         if (!isReadable) {
-            throw new Error(`Config directory does not exist or is not readable: ${configDirectory}`);
+            throw new Error(`Config directory exists but is not readable: ${configDirectory}`);
         }
     }
+}
+
+export const validate = async <T extends z.ZodRawShape>(config: z.infer<ZodObject<T & typeof ConfigSchema.shape>>, options: Options<T>): Promise<void> => {
+    const logger = options.logger;
 
     if (options.features.includes('config') && config.configDirectory) {
-        await validateConfigDirectory(config.configDirectory);
+        await validateConfigDirectory(config.configDirectory, options.defaults.isRequired);
     }
 
     // Combine the base schema with the user-provided shape

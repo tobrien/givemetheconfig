@@ -6,12 +6,15 @@ import { z } from "zod";
 export type Feature = 'config';
 
 export interface DefaultOptions {
-    configDirectory?: string;
+    configDirectory: string;
+    configFile: string;
+    isRequired: boolean;
+    encoding: string;
 }
 
 // Use ZodRawShape for easier merging later
 export interface Options<T extends z.ZodRawShape> {
-    defaults?: DefaultOptions,
+    defaults: DefaultOptions,
     features: Feature[],
     configShape: T; // User-defined configuration shape
     logger: Logger;
